@@ -1,0 +1,12 @@
+[package]
+name = "color_scheme_generator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.83"
+clap = { version = "4.5.4", features = ["derive"] }
+image = "0.25.1"
+rayon = "1.10.0"
+serde = { version = "1.0.201", features = ["derive"] }
+shellwords = "1.1.0"
