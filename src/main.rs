@@ -57,13 +57,16 @@ fn main() -> anyhow::Result<()> {
     let cache_path = xdg_dirs.place_cache_file("cache.db")?;
     let conn = database::DatabaseConnection::new(&PathBuf::from(cache_path))?;
     let json: String = match conn.select_color_theme_by_image_path(&args.image) {
-        Ok(c) => 
-            serde_json::to_string_pretty::<Vec<theme_calculation::ColorTheme>>(&c)?,
+        Ok(c) => serde_json::to_string_pretty::<Vec<theme_calculation::ColorTheme>>(&c)?,
         Err(_) => {
-	   let theme = theme_calculation::generate_color_theme(&args.image, args.centrality, args.number_of_themes);
-		conn.insert_color_theme_record(&args.image, &theme)?;
-	    serde_json::to_string_pretty::<Vec<theme_calculation::ColorTheme>>(&theme)?
-	}
+            let theme = theme_calculation::generate_color_theme(
+                &args.image,
+                args.centrality,
+                args.number_of_themes,
+            );
+            conn.insert_color_theme_record(&args.image, &theme)?;
+            serde_json::to_string_pretty::<Vec<theme_calculation::ColorTheme>>(&theme)?
+        }
     };
     println!("{}", json);
     Ok(())

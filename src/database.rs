@@ -1,6 +1,6 @@
-use std::path::PathBuf;
 use crate::theme_calculation::ColorTheme;
 use sqlite::Connection;
+use std::path::PathBuf;
 
 pub struct DatabaseConnection {
     connection: Connection,
@@ -43,7 +43,10 @@ impl DatabaseConnection {
             .into_iter()
             .map(|r| r.unwrap())
             .collect::<Vec<_>>();
-            let json = row.iter().map(|r| r.read::<&str, _>("json")).collect::<String>();
+        let json = row
+            .iter()
+            .map(|r| r.read::<&str, _>("json"))
+            .collect::<String>();
         let color_theme: Vec<ColorTheme> = serde_json::from_str(&json)?;
         Ok(color_theme)
     }

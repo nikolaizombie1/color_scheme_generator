@@ -1,10 +1,7 @@
 use clap::ValueEnum;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{Display},
-    path::PathBuf,
-};
+use std::{fmt::Display, path::PathBuf};
 
 #[derive(PartialEq, Copy, Clone, ValueEnum)]
 pub enum Centrality {
