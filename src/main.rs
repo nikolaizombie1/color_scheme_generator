@@ -1,7 +1,7 @@
-use anyhow::Result;
-use color_scheme_generator::theme_calculation;
+use color_scheme_generator::{database, theme_calculation};
 use std::{
-   io::{stdin, IsTerminal, Read}, path::PathBuf
+    io::{stdin, IsTerminal, Read},
+    path::PathBuf,
 };
 
 use clap::Parser;
@@ -14,15 +14,27 @@ struct Args {
     #[arg(short, long, required = true)]
     centrality: theme_calculation::Centrality,
     #[arg(short, long, default_value_t = 5)]
-    number_of_themes: u8
+    number_of_themes: u8,
 }
 
 fn is_image(input: &str) -> anyhow::Result<PathBuf> {
-    image::io::Reader::open(input)?.with_guessed_format()?.format().ok_or(std::fmt::Error)?;
-    Ok(input.parse::<PathBuf>()?)
+    let path = input.parse::<PathBuf>()?;
+    let conn = database::connect_to_database("/home/uwu/Downloads/temp.db")?;
+    match database::select_color_theme_by_image_path(conn, input) {
+        Ok(_) => {
+            return Ok(path);
+        }
+        Err(_) => {
+            image::io::Reader::open(input)?
+                .with_guessed_format()?
+                .format()
+                .ok_or(std::fmt::Error)?;
+            Ok(path)
+        }
+    }
 }
 
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> {
     let args = if stdin().is_terminal() {
         Args::parse()
     } else {
@@ -33,11 +45,15 @@ fn main() -> Result<()> {
                 break;
             }
         }
-	let input = String::from(input.trim());
+        let input = String::from(input.trim());
         let mut args = std::env::args().collect::<Vec<_>>();
-	args.push(input);
+        args.push(input);
         Args::parse_from(args.iter())
     };
-    println!("{}", args.image.as_path().to_str().unwrap());
+    let conn = database::connect_to_database("/home/uwu/Downloads/temp.db")?;
+    match database::select_color_theme_by_image_path(conn, args.image.to_str().ok_or(std::fmt::Error)?) {
+        Ok(c) => println!("{}", serde_json::to_string::<theme_calculation::ColorTheme>(&c)?),
+        Err(_) => todo!(),
+    }
     Ok(())
 }

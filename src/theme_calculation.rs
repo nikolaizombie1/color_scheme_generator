@@ -1,6 +1,6 @@
 use clap::ValueEnum;
 use rayon::prelude::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(PartialEq, Copy, Clone, ValueEnum)]
@@ -10,14 +10,14 @@ pub enum Centrality {
     Prevalent,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RGB {
     red: u8,
     green: u8,
     blue: u8,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ColorTheme {
     pub bar_color: RGB,
     pub workspace_color: RGB,
