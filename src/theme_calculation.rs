@@ -1,8 +1,9 @@
+use clap::ValueEnum;
 use rayon::prelude::*;
 use serde::Serialize;
 use std::path::PathBuf;
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, ValueEnum)]
 pub enum Centrality {
     Average,
     Median,
