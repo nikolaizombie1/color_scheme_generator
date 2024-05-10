@@ -17,9 +17,13 @@ struct Args {
     number_of_themes: u8,
 }
 
+const APP_NAME: &str = "color_scheme_generator";
+
 fn is_image(input: &str) -> anyhow::Result<PathBuf> {
     let path = input.parse::<PathBuf>()?;
-    let conn = database::DatabaseConnection::new(&PathBuf::from("/home/uwu/Downloads/temp.db"))?;
+    let xdg_dirs = xdg::BaseDirectories::with_prefix(APP_NAME)?;
+    let cache_path = xdg_dirs.place_cache_file("cache.db")?;
+    let conn = database::DatabaseConnection::new(&PathBuf::from(cache_path))?;
     match conn.select_color_theme_by_image_path(&path) {
         Ok(_) => Ok(path),
         Err(_) => {
@@ -48,7 +52,10 @@ fn main() -> anyhow::Result<()> {
         args.push(input);
         Args::parse_from(args.iter())
     };
-    let conn = database::DatabaseConnection::new(&PathBuf::from("/home/uwu/Downloads/temp.db"))?;
+
+    let xdg_dirs = xdg::BaseDirectories::with_prefix(APP_NAME)?;
+    let cache_path = xdg_dirs.place_cache_file("cache.db")?;
+    let conn = database::DatabaseConnection::new(&PathBuf::from(cache_path))?;
     let json: String = match conn.select_color_theme_by_image_path(&args.image) {
         Ok(c) => 
             serde_json::to_string_pretty::<Vec<theme_calculation::ColorTheme>>(&c)?,

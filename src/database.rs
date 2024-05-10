@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-
 use crate::theme_calculation::ColorTheme;
 use sqlite::Connection;
 
