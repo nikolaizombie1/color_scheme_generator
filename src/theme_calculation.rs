@@ -1,13 +1,26 @@
 use clap::ValueEnum;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{
+    fmt::{Display},
+    path::PathBuf,
+};
 
 #[derive(PartialEq, Copy, Clone, ValueEnum)]
 pub enum Centrality {
     Average,
     Median,
     Prevalent,
+}
+
+impl Display for Centrality {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Centrality::Average => write!(f, "average"),
+            Centrality::Median => write!(f, "median"),
+            Centrality::Prevalent => write!(f, "prevalent"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,13 +53,14 @@ pub fn generate_color_theme(
     let bar_color = match centrality {
         Centrality::Average => vec![average_pixel(&pixels)],
         Centrality::Median => vec![median_pixel(&pixels)],
-        Centrality::Prevalent => prevalent_pixel(&pixels,number_of_themes),
+        Centrality::Prevalent => prevalent_pixel(&pixels, number_of_themes),
     };
     match centrality {
         Centrality::Average | Centrality::Median => vec![(calculate_color_theme(&bar_color[0]))],
-        Centrality::Prevalent => {
-	    bar_color.par_iter().map(calculate_color_theme).collect::<Vec<_>>()
-	}
+        Centrality::Prevalent => bar_color
+            .par_iter()
+            .map(calculate_color_theme)
+            .collect::<Vec<_>>(),
     }
 }
 
@@ -129,17 +143,26 @@ fn prevalent_pixel(pixels: &[image::Rgb<u8>], number_of_themes: u8) -> Vec<RGB> 
     }
     let most_prevalent = pixel_prevalence_count
         .par_iter()
-        .map(|x| {
-            (
-		x.0,
-                x.1
-            )
-        }).collect::<Vec<_>>();
+        .map(|x| (x.0, x.1))
+        .collect::<Vec<_>>();
     if most_prevalent.len() > number_of_themes as usize {
-	most_prevalent[0..(number_of_themes as usize)].par_iter().map(|x| RGB{red: x.0[0], green: x.0[1], blue: x.0[2]}).collect::<Vec<_>>()
+        most_prevalent[0..(number_of_themes as usize)]
+            .par_iter()
+            .map(|x| RGB {
+                red: x.0[0],
+                green: x.0[1],
+                blue: x.0[2],
+            })
+            .collect::<Vec<_>>()
     } else {
-	
-	most_prevalent.par_iter().map(|x| RGB{red: x.0[0], green: x.0[1], blue: x.0[2]}).collect::<Vec<_>>()
+        most_prevalent
+            .par_iter()
+            .map(|x| RGB {
+                red: x.0[0],
+                green: x.0[1],
+                blue: x.0[2],
+            })
+            .collect::<Vec<_>>()
     }
 }
 

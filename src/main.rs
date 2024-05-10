@@ -11,7 +11,7 @@ use clap::Parser;
 struct Args {
     #[arg(required = true, index = 1, value_parser = is_image)]
     image: PathBuf,
-    #[arg(short, long, required = true)]
+    #[arg(short, long, default_value_t = theme_calculation::Centrality::Prevalent)]
     centrality: theme_calculation::Centrality,
     #[arg(short, long, default_value_t = 5)]
     number_of_themes: u8,
@@ -19,11 +19,9 @@ struct Args {
 
 fn is_image(input: &str) -> anyhow::Result<PathBuf> {
     let path = input.parse::<PathBuf>()?;
-    let conn = database::connect_to_database("/home/uwu/Downloads/temp.db")?;
-    match database::select_color_theme_by_image_path(conn, input) {
-        Ok(_) => {
-            return Ok(path);
-        }
+    let conn = database::DatabaseConnection::new(&PathBuf::from("/home/uwu/Downloads/temp.db"))?;
+    match conn.select_color_theme_by_image_path(&path) {
+        Ok(_) => Ok(path),
         Err(_) => {
             image::io::Reader::open(input)?
                 .with_guessed_format()?
@@ -50,10 +48,16 @@ fn main() -> anyhow::Result<()> {
         args.push(input);
         Args::parse_from(args.iter())
     };
-    let conn = database::connect_to_database("/home/uwu/Downloads/temp.db")?;
-    match database::select_color_theme_by_image_path(conn, args.image.to_str().ok_or(std::fmt::Error)?) {
-        Ok(c) => println!("{}", serde_json::to_string::<theme_calculation::ColorTheme>(&c)?),
-        Err(_) => todo!(),
-    }
+    let conn = database::DatabaseConnection::new(&PathBuf::from("/home/uwu/Downloads/temp.db"))?;
+    let json: String = match conn.select_color_theme_by_image_path(&args.image) {
+        Ok(c) => 
+            serde_json::to_string_pretty::<Vec<theme_calculation::ColorTheme>>(&c)?,
+        Err(_) => {
+	   let theme = theme_calculation::generate_color_theme(&args.image, args.centrality, args.number_of_themes);
+		conn.insert_color_theme_record(&args.image, &theme)?;
+	    serde_json::to_string_pretty::<Vec<theme_calculation::ColorTheme>>(&theme)?
+	}
+    };
+    println!("{}", json);
     Ok(())
 }
