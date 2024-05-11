@@ -1,3 +1,5 @@
+#![deny(unused_extern_crates)]
+#![warn(missing_docs)]
 use clap::ValueEnum;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};

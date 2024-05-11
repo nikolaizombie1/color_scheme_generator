@@ -1,6 +1,8 @@
+#![deny(unused_extern_crates)]
+#![warn(missing_docs)]
 use crate::theme_calculation::ColorTheme;
 use sqlite::Connection;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 
 pub struct DatabaseConnection {
     connection: Connection,
@@ -16,13 +18,13 @@ impl DatabaseConnection {
 
     pub fn insert_color_theme_record(
         &self,
-        image_path: &PathBuf,
+        image_path: &Path,
         theme: &[ColorTheme],
     ) -> anyhow::Result<()> {
         let theme_json = serde_json::to_string(&theme)?;
         let query = format!(
             "INSERT INTO wallpaper_record (path, json) VALUES ('{}','{}')",
-            image_path.as_path().to_str().ok_or(std::fmt::Error)?,
+            image_path.to_str().ok_or(std::fmt::Error)?,
             theme_json
         );
         self.connection.execute(query)?;
@@ -31,11 +33,11 @@ impl DatabaseConnection {
 
     pub fn select_color_theme_by_image_path(
         &self,
-        image_path: &PathBuf,
+        image_path: &Path,
     ) -> anyhow::Result<Vec<ColorTheme>> {
         let query = format!(
             "SELECT json FROM wallpaper_record WHERE path = '{}'",
-            image_path.as_path().to_str().ok_or(std::fmt::Error)?
+            image_path.to_str().ok_or(std::fmt::Error)?
         );
         let row = self
             .connection
