@@ -1,8 +1,28 @@
 #![deny(unused_extern_crates)]
 #![warn(missing_docs)]
+
+//! Quickly generate color schemes for waybar from an image.
+//!
+//! color_scheme_generator is a command line utility used to analyze images
+//! and generate color themes from them given a path to an image.
+//!
+//! This command line utility behaves like a standard UNIX utility where the path to the image can be either piped in or sent a command line argument.
+//!
+//! The intended purpose of this application is to automatically create color themes for
+//! Waybar, but it used for the bar in AwesomeWM or other applications to theme based on the on an image.
+//! This utility has a cache for the image analysis. This means that once an image has been analyzed once, the result will be saved in the cache and when an image is analyzed again, the results will be returned instantly.
+//!
+//! # Usage Examples
+//! ```bash
+//! echo PATH_TO_IMAGE | color_scheme_generator
+//! ```
+//! ```color_scheme_generator PATH_TO_IMAGE```
+//!
+
 use color_scheme_generator::{database, theme_calculation};
 use std::{
-    io::{stdin, IsTerminal, Read}, path::PathBuf
+    io::{stdin, IsTerminal, Read},
+    path::PathBuf,
 };
 
 use clap::{Parser, ValueEnum};
@@ -24,6 +44,7 @@ struct Args {
 enum OutputFormat {
     JSON,
     YAML,
+    TEXT,
 }
 
 impl std::fmt::Display for OutputFormat {
@@ -31,6 +52,7 @@ impl std::fmt::Display for OutputFormat {
         match self {
             OutputFormat::JSON => write!(f, "{}", "json"),
             OutputFormat::YAML => write!(f, "{}", "yaml"),
+            OutputFormat::TEXT => write!(f, "{}", "text"),
         }
     }
 }
@@ -89,8 +111,37 @@ fn main() -> anyhow::Result<()> {
         };
 
     let output: String = match args.serialization_format {
-        OutputFormat::JSON => serde_json::to_string::<Vec<theme_calculation::ColorTheme>>(&color_themes)?,
-        OutputFormat::YAML => serde_yml::to_string::<Vec<theme_calculation::ColorTheme>>(&color_themes)?,
+        OutputFormat::JSON => {
+            serde_json::to_string::<Vec<theme_calculation::ColorTheme>>(&color_themes)?
+        }
+        OutputFormat::YAML => {
+            serde_yml::to_string::<Vec<theme_calculation::ColorTheme>>(&color_themes)?
+        }
+        OutputFormat::TEXT => {
+            let x = color_themes
+                .iter()
+                .map(|c| {
+                    format!(
+                        "{:02x?}{:02x?}{:02x?},{:02x?}{:02x?}{:02x?},{:02x?}{:02x?}{:02x?}",
+                        c.bar_color.red,
+                        c.bar_color.green,
+                        c.bar_color.blue,
+                        c.workspace_color.red,
+                        c.workspace_color.green,
+                        c.workspace_color.blue,
+                        c.text_color.red,
+                        c.text_color.green,
+                        c.text_color.blue
+                    )
+                })
+                .collect::<Vec<_>>();
+            let x = x.iter().map(|s| s.to_ascii_uppercase()).collect::<Vec<_>>();
+            let mut ret = String::new();
+            for c in x {
+                ret += &String::from(c + "\n");
+            }
+            ret
+        }
     };
     println!("{}", output);
     Ok(())
