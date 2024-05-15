@@ -42,7 +42,7 @@
 //!     blue: 255
 //! ```
 //! 3. Text
-//! ```
+//! ```bash
 //! DEBABD,214542,FFFFFF
 //! ```
 //! The text output has the format of `BAR_COLOR,WORKSPACE_COLOR,TEXT_COLOR`.
