@@ -55,19 +55,25 @@ use std::{
 
 use clap::{Parser, ValueEnum};
 
+/// Command line argument Struct used by clap to parse CLI arguments.
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Args {
+    /// Path to the image file.
     #[arg(required = true, index = 1, value_parser = is_image)]
     image: PathBuf,
+    /// Measure of centrality to be used to analyze an image.
     #[arg(short, long, default_value_t = theme_calculation::Centrality::Prevalent)]
     centrality: theme_calculation::Centrality,
+    /// Number of color themes to be generated. (Only works in prevalent centrality).
     #[arg(short, long, default_value_t = 5)]
     number_of_themes: u8,
+    /// Output format for color themes.
     #[arg(short, long, default_value_t = OutputFormat::JSON)]
     serialization_format: OutputFormat,
 }
 
+/// Output format for [`color_scheme_generator::theme_calculation::ColorTheme`].
 #[derive(Clone, ValueEnum)]
 enum OutputFormat {
     JSON,
@@ -85,8 +91,12 @@ impl std::fmt::Display for OutputFormat {
     }
 }
 
+/// Application Name used for XDG compliant directory structure.
 const APP_NAME: &str = "color_scheme_generator";
 
+/// Custom validator for [`Args::image`].
+///
+/// First checks if image path is in the cache, if not, checks if the image file is valid.
 fn is_image(input: &str) -> anyhow::Result<PathBuf> {
     let path = input.parse::<PathBuf>()?;
     let xdg_dirs = xdg::BaseDirectories::with_prefix(APP_NAME)?;
@@ -104,6 +114,14 @@ fn is_image(input: &str) -> anyhow::Result<PathBuf> {
     }
 }
 
+/// Starting point of the application.
+///
+/// Check if program is in pipe, if so receive stdin and parse arguments and stdin.
+/// Else, parse the arguments normally.
+///
+/// Creates cache inside of XDG_CACHE_HOME,
+/// check if image is in cache, if so return theme,
+/// else analyze the image and add it to cache.
 fn main() -> anyhow::Result<()> {
     let args = if stdin().is_terminal() {
         Args::parse()
@@ -132,7 +150,7 @@ fn main() -> anyhow::Result<()> {
                     &args.image,
                     args.centrality,
                     args.number_of_themes,
-                );
+                )?;
                 conn.insert_color_theme_record(&args.image, &theme)?;
                 theme
             }

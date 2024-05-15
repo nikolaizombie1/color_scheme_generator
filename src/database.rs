@@ -40,7 +40,7 @@ impl DatabaseConnection {
     /// # use std::path::PathBuf;
     /// # use color_scheme_generator::database::DatabaseConnection;
     /// # use color_scheme_generator::theme_calculation::{ColorTheme, RGB};
-    /// # let db_path = "test.db".parse::<PathBuf>().unwrap();
+    /// # let db_path = ":memory:".parse::<PathBuf>().unwrap();
     /// let conn = DatabaseConnection::new(&db_path).unwrap();
     /// # let themes = vec![ColorTheme{bar_color: RGB{red: 1, green: 2, blue: 3}, workspace_color:RGB{red: 4, green: 5, blue: 6}, text_color: RGB{red: 7, green: 8, blue: 9}}];
     /// # let image_path = "PATH".parse::<PathBuf>().unwrap();
