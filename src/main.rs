@@ -16,8 +16,36 @@
 //! ```bash
 //! echo PATH_TO_IMAGE | color_scheme_generator
 //! ```
-//! ```color_scheme_generator PATH_TO_IMAGE```
+//! ```bash
+//! color_scheme_generator PATH_TO_IMAGE
+//! ```
 //!
+//! # Output Formats
+//! color_scheme_generator can output to 3 different output formats all of which give an RGB8 value in the form of "bar_color", "workspace_color" and "text_color":
+//! 1. JSON
+//! ```json
+//! [{"bar_color":{"red":222,"green":186,"blue":189},"workspace_color":{"red":33,"green":69,"blue":66},"text_color":{"red":255,"green":255,"blue":255}}]
+//! ```
+//! 2. YAML
+//! ```yaml
+//! - bar_color:
+//!     red: 222
+//!     green: 186
+//!     blue: 189
+//!   workspace_color:
+//!     red: 33
+//!     green: 69
+//!     blue: 66
+//!   text_color:
+//!     red: 255
+//!     green: 255
+//!     blue: 255
+//! ```
+//! 3. Text
+//! ```
+//! DEBABD,214542,FFFFFF
+//! ```
+//! The text output has the format of `BAR_COLOR,WORKSPACE_COLOR,TEXT_COLOR`.
 
 use color_scheme_generator::{database, theme_calculation};
 use std::{
