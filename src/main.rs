@@ -66,7 +66,7 @@ struct Args {
     #[arg(short, long, default_value_t = theme_calculation::Centrality::Prevalent)]
     centrality: theme_calculation::Centrality,
     /// Number of color themes to be generated. (Only works in prevalent centrality).
-    #[arg(short, long, default_value_t = 5)]
+    #[arg(short, long, default_value_t = 1)]
     number_of_themes: u8,
     /// Output format for color themes.
     #[arg(short, long, default_value_t = OutputFormat::JSON)]

@@ -197,10 +197,11 @@ fn prevalent_pixel(pixels: &[image::Rgb<u8>], number_of_themes: u8) -> Vec<RGB> 
         let count = pixel_prevalence_count.entry(pixel).or_insert(0);
         *count += 1;
     }
-    let most_prevalent = pixel_prevalence_count
+    let mut most_prevalent = pixel_prevalence_count
         .par_iter()
         .map(|x| (x.0, x.1))
         .collect::<Vec<_>>();
+    most_prevalent.sort_by(|a,b| b.1.cmp(a.1));
     if most_prevalent.len() > number_of_themes as usize {
         most_prevalent[0..(number_of_themes as usize)]
             .par_iter()
@@ -210,6 +211,7 @@ fn prevalent_pixel(pixels: &[image::Rgb<u8>], number_of_themes: u8) -> Vec<RGB> 
                 blue: x.0[2],
             })
             .collect::<Vec<_>>()
+        
     } else {
         most_prevalent
             .par_iter()
