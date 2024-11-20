@@ -1,3 +1,5 @@
+# color_scheme_generator
+
 Quickly generate color schemes for waybar from an image.
 
 color_scheme_generator is a command line utility used to analyze images
@@ -6,7 +8,7 @@ and generate color themes from them given a path to an image.
 This command line utility behaves like a standard UNIX utility where the path to the image can be either piped in or sent a command line argument.
 
 The intended purpose of this application is to automatically create color themes for
-Waybar, but it used for the bar in AwesomeWM or other applications to theme based on the on an image.
+Waybar, but it can be used used for the bar in AwesomeWM or other applications to theme based on the on an image.
 This utility has a cache for the image analysis. This means that once an image has been analyzed once, the result will be saved in the cache and when an image is analyzed again, the results will be returned instantly.
 
 # Usage Examples

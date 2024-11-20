@@ -105,7 +105,7 @@ fn is_image(input: &str) -> anyhow::Result<PathBuf> {
     match conn.select_color_theme_by_image_path(&path) {
         Ok(_) => Ok(path),
         Err(_) => {
-            image::io::Reader::open(input)?
+            image::ImageReader::open(input)?
                 .with_guessed_format()?
                 .format()
                 .ok_or(std::fmt::Error)?;

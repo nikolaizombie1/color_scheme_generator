@@ -73,7 +73,7 @@ pub fn generate_color_theme(
     centrality: Centrality,
     number_of_themes: u8,
 ) -> anyhow::Result<Vec<ColorTheme>> {
-    let pixels = image::io::Reader::open(path)?
+    let pixels = image::ImageReader::open(path)?
         .decode()?
         .to_rgb8()
         .pixels()
