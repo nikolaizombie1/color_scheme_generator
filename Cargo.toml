@@ -1,6 +1,6 @@
 [package]
 name = "color_scheme_generator"
-version = "0.9.1"
+version = "0.9.2"
 edition = "2021"
 description = "A Command line utility to quickly and easily create color themes from an image."
 license = "GPL-3.0+"
