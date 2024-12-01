@@ -47,71 +47,38 @@
 //! ```
 //! The text output has the format of `BAR_COLOR,WORKSPACE_COLOR,TEXT_COLOR`.
 
-use color_scheme_generator::{database, theme_calculation};
-use std::{
-    io::{stdin, IsTerminal, Read},
-    path::PathBuf,
+use clap::Parser;
+use color_scheme_generator::{
+    common::{Centrality, Cli, ColorThemes, OutputFormat, APP_NAME, Wallpaper, Color},
+    database, theme_calculation,
 };
+use std::io::{stdin, IsTerminal, Read};
+use std::path::PathBuf;
 
-use clap::{Parser, ValueEnum};
-
-/// Command line argument Struct used by clap to parse CLI arguments.
-#[derive(Parser)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Path to the image file.
-    #[arg(required = true, index = 1, value_parser = is_image)]
-    image: PathBuf,
-    /// Measure of centrality to be used to analyze an image.
-    #[arg(short, long, default_value_t = theme_calculation::Centrality::Prevalent)]
-    centrality: theme_calculation::Centrality,
-    /// Number of color themes to be generated. (Only works in prevalent centrality).
-    #[arg(short, long, default_value_t = 1)]
-    number_of_themes: u8,
-    /// Output format for color themes.
-    #[arg(short, long, default_value_t = OutputFormat::JSON)]
-    serialization_format: OutputFormat,
+fn is_image(path: &PathBuf) -> anyhow::Result<()> {
+    image::ImageReader::open(path)?.with_guessed_format()?;
+    Ok(())
 }
 
-/// Output format for [`color_scheme_generator::theme_calculation::ColorTheme`].
-#[derive(Clone, ValueEnum)]
-enum OutputFormat {
-    JSON,
-    YAML,
-    TEXT,
-}
-
-impl std::fmt::Display for OutputFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            OutputFormat::JSON => write!(f, "{}", "json"),
-            OutputFormat::YAML => write!(f, "{}", "yaml"),
-            OutputFormat::TEXT => write!(f, "{}", "text"),
-        }
+fn is_default_color_theme_arguments(ct: &ColorThemes) -> bool {
+    if ct.darker != 0
+        || ct.lighter != 0
+        || ct.complementary
+        || ct.contrast
+        || ct.hue_offset != 0
+        || ct.triadic
+        || ct.quadratic
+        || ct.analogous
+        || ct.split_complementary
+        || ct.monochromatic != 0
+        || ct.shades != 0
+        || ct.tints != 0
+        || ct.tones != 0
+        || ct.blends != 0
+    {
+        return false;
     }
-}
-
-/// Application Name used for XDG compliant directory structure.
-const APP_NAME: &str = "color_scheme_generator";
-
-/// Custom validator for [`Args::image`].
-///
-/// First checks if image path is in the cache, if not, checks if the image file is valid.
-fn is_image(input: &str) -> anyhow::Result<PathBuf> {
-    let path = input.parse::<PathBuf>()?;
-    let xdg_dirs = xdg::BaseDirectories::with_prefix(APP_NAME)?;
-    let cache_path = xdg_dirs.place_cache_file("cache.db")?;
-    let conn = database::DatabaseConnection::new(&cache_path)?;
-    match conn.select_color_theme_by_image_path(&path) {
-        Ok(_) => Ok(path),
-        Err(_) => {
-            image::ImageReader::open(input)?
-                .with_guessed_format()?
-                .format()
-                .ok_or(std::fmt::Error)?;
-            Ok(path)
-        }
-    }
+    true
 }
 
 /// Starting point of the application.
@@ -123,8 +90,11 @@ fn is_image(input: &str) -> anyhow::Result<PathBuf> {
 /// check if image is in cache, if so return theme,
 /// else analyze the image and add it to cache.
 fn main() -> anyhow::Result<()> {
-    let args = if stdin().is_terminal() {
-        Args::parse()
+
+
+
+    let mut args = if stdin().is_terminal() {
+        Cli::parse()
     } else {
         let mut input = String::new();
         let mut stdin = stdin().lock();
@@ -136,57 +106,61 @@ fn main() -> anyhow::Result<()> {
         let input = String::from(input.trim());
         let mut args = std::env::args().collect::<Vec<_>>();
         args.push(input);
-        Args::parse_from(args.iter())
+        Cli::parse_from(args.iter())
     };
+
+    if (args.color_themes.tetratic || args.color_themes.blends > 0)
+        && args.centrality != Centrality::Prevalent
+    {
+        eprintln!(
+            "Prevalent centrality must be present for either Tetratic or Blends color schemes."
+        );
+	    std::process::exit(1);
+    }
+
+    if is_default_color_theme_arguments(&args.color_themes) {
+	args.color_themes.quadratic = true;
+    }
 
     let xdg_dirs = xdg::BaseDirectories::with_prefix(APP_NAME)?;
     let cache_path = xdg_dirs.place_cache_file("cache.db")?;
     let conn = database::DatabaseConnection::new(&cache_path)?;
-    let color_themes: Vec<theme_calculation::ColorTheme> =
-        match conn.select_color_theme_by_image_path(&args.image) {
-            Ok(c) => c,
-            Err(_) => {
-                let theme = theme_calculation::generate_color_theme(
-                    &args.image,
-                    args.centrality,
-                    args.number_of_themes,
-                )?;
-                conn.insert_color_theme_record(&args.image, &theme)?;
-                theme
-            }
-        };
+
+    let wallpaper = Wallpaper{path: args.image.clone(), centrality: args.centrality};
+    let is_in_db = conn.is_color_theme_equal(&args.color_themes, &wallpaper)?;
+    let color_themes = match is_in_db {
+        true => conn.select_color_records(&wallpaper),
+        false => {
+	    if is_image(&args.image).is_err() {
+		eprintln!("Inputted file is not an image");
+		std::process::exit(1);
+	    }
+	    conn.insert_wallpaper_record(&wallpaper)?;
+	    conn.insert_color_themes_record(&args.color_themes, &wallpaper)?;
+	    let colors = crate::theme_calculation::generate_color_theme(&args)?;
+	    for color in &colors {
+		conn.insert_color_record(color, &wallpaper)?;
+	    }
+	    Ok(colors)
+	},
+    };
+
+    if color_themes.is_err() {
+	eprintln!("Error generating theme. Exiting.");
+	std::process::exit(1);
+    }
+
+    let color_themes = color_themes.unwrap();
 
     let output: String = match args.serialization_format {
-        OutputFormat::JSON => {
-            serde_json::to_string::<Vec<theme_calculation::ColorTheme>>(&color_themes)?
-        }
-        OutputFormat::YAML => {
-            serde_yml::to_string::<Vec<theme_calculation::ColorTheme>>(&color_themes)?
-        }
+        OutputFormat::JSON => serde_json::to_string::<Vec<Color>>(&color_themes)?,
+        OutputFormat::YAML => serde_yml::to_string::<Vec<Color>>(&color_themes)?,
         OutputFormat::TEXT => {
-            let x = color_themes
-                .iter()
-                .map(|c| {
-                    format!(
-                        "{:02x?}{:02x?}{:02x?},{:02x?}{:02x?}{:02x?},{:02x?}{:02x?}{:02x?}",
-                        c.bar_color.red,
-                        c.bar_color.green,
-                        c.bar_color.blue,
-                        c.workspace_color.red,
-                        c.workspace_color.green,
-                        c.workspace_color.blue,
-                        c.text_color.red,
-                        c.text_color.green,
-                        c.text_color.blue
-                    )
-                })
-                .collect::<Vec<_>>();
-            let x = x.iter().map(|s| s.to_ascii_uppercase()).collect::<Vec<_>>();
-            let mut ret = String::new();
-            for c in x {
-                ret += &String::from(c + "\n");
-            }
-            ret
+	    let mut ret = String::new();
+	    color_themes.iter().for_each(|c| ret += &format!("{},", c.color));
+	    let mut ret = String::from(&(&ret)[0..ret.len()-2]);
+	    ret += "\n";
+	    ret
         }
     };
     println!("{}", output);

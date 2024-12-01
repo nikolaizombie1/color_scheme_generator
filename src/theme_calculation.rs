@@ -1,52 +1,11 @@
 #![deny(unused_extern_crates)]
 #![warn(missing_docs)]
-use clap::ValueEnum;
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use std::{fmt::Display, path::PathBuf};
+use crate::common::{RGB, Centrality, Color, GAMUT_CLI_NAME, Cli, ColorThemes};
+use std::process::Command;
+use which::which;
 
-/// Measures of centrality to generate ColorTheme.
-#[derive(PartialEq, Copy, Clone, ValueEnum)]
-pub enum Centrality {
-    /// Takes the sum of the pixels and divides by the amount of pixels in an image.
-    Average,
-    /// Sort the pixels and takes the middlemost pixel in an image.
-    Median,
-    /// Get the most repeating pixels in an image.
-    Prevalent,
-}
 
-impl Display for Centrality {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Centrality::Average => write!(f, "average"),
-            Centrality::Median => write!(f, "median"),
-            Centrality::Prevalent => write!(f, "prevalent"),
-        }
-    }
-}
-
-/// Struct representation for the [`image::Rgb<u8>`] type.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct RGB {
-    /// Red RGB sub-pixel.
-    pub red: u8,
-    /// Green RGB sub-pixel.
-    pub green: u8,
-    /// Blue RGB sub-pixel.
-    pub blue: u8,
-}
-
-/// Representation for Sway Waybar color theme.
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct ColorTheme {
-    /// The color determined by the [`Centrality`] metric.
-    pub bar_color: RGB,
-    /// The compliment of the [`ColorTheme::bar_color`].
-    pub workspace_color: RGB,
-    /// Either black or white depending on the [`ColorTheme::workspace_color`]
-    pub text_color: RGB,
-}
 
 /// Get a [`Vec<ColorTheme>`] for an image based on the centrality and number of themes.
 ///
@@ -69,65 +28,25 @@ pub struct ColorTheme {
 /// generate_color_theme(&image_path, Centrality::Prevalent, 10);
 /// ```
 pub fn generate_color_theme(
-    path: &PathBuf,
-    centrality: Centrality,
-    number_of_themes: u8,
-) -> anyhow::Result<Vec<ColorTheme>> {
-    let pixels = image::ImageReader::open(path)?
+    args: &Cli
+) -> anyhow::Result<Vec<Color>> {
+    let pixels = image::ImageReader::open(&args.image)?
         .decode()?
         .to_rgb8()
         .pixels()
         .copied()
         .collect::<Vec<_>>();
-    let bar_color = match centrality {
+    let bar_color = match args.centrality {
         Centrality::Average => vec![average_pixel(&pixels)],
         Centrality::Median => vec![median_pixel(&pixels)],
-        Centrality::Prevalent => prevalent_pixel(&pixels, number_of_themes),
+        Centrality::Prevalent => prevalent_pixel(&pixels, 2),
     };
-    match centrality {
-        Centrality::Average | Centrality::Median => Ok(vec![(calculate_color_theme(&bar_color[0]))]),
-        Centrality::Prevalent => Ok(bar_color
-            .par_iter()
-            .map(calculate_color_theme)
-            .collect::<Vec<_>>()),
+    match args.centrality {
+        Centrality::Average | Centrality::Median => Ok(call_gamut_cli(&args.color_themes, &bar_color[0], None)?),
+        Centrality::Prevalent => Ok(call_gamut_cli(&args.color_themes, &bar_color[0], Some(&bar_color[1]))?),
     }
 }
 
-
-/// Generate the [`ColorTheme::workspace_color`] and Generate the [`ColorTheme::text_color`]
-/// For a given [`RGB`] value.
-///
-/// Examples
-///
-/// ```
-/// use color_scheme_generator::theme_calculation::{RGB, calculate_color_theme, ColorTheme}; 
-/// let pixel = RGB{red: 0, green: 0, blue: 0};
-/// let result = calculate_color_theme(&pixel);
-/// let expected = ColorTheme{bar_color: RGB{red: 0, green: 0, blue: 0}, workspace_color: RGB{red: 255, green: 255, blue: 255}, text_color: RGB{red: 0, green: 0, blue: 0}};
-/// assert_eq!(expected, result);
-/// ```
-pub fn calculate_color_theme(rgb: &RGB) -> ColorTheme {
-    let workspace_color = complementary_color(rgb);
-    let text_color =
-        if workspace_color.red > 128 && workspace_color.blue > 128 && workspace_color.green > 128 {
-            RGB {
-                red: 0,
-                green: 0,
-                blue: 0,
-            }
-        } else {
-            RGB {
-                red: 255,
-                green: 255,
-                blue: 255,
-            }
-        };
-    ColorTheme {
-        bar_color: rgb.clone(),
-        workspace_color,
-        text_color,
-    }
-}
 
 /// Get the average pixel from an image.
 ///
@@ -224,14 +143,15 @@ fn prevalent_pixel(pixels: &[image::Rgb<u8>], number_of_themes: u8) -> Vec<RGB> 
     }
 }
 
-/// Get the compliment of an RGB pixel.
-///
-/// # Note
-/// The formula used was 255 - pixel_value.
-fn complementary_color(rgb: &RGB) -> RGB {
-    RGB {
-        red: 255 - rgb.red,
-        green: 255 - rgb.green,
-        blue: 255 - rgb.blue,
-    }
+fn call_gamut_cli(args: &ColorThemes, color1: &RGB, color2: Option<&RGB>) -> Result<Vec<Color>, anyhow::Error> {
+    which(GAMUT_CLI_NAME)?;
+    let color2str = match color2 {
+        Some(c) => c,
+        None => &RGB{blue: 0, green: 0, red: 0},
+    };
+    let gamut_command = format!("gamut-cli {} -Color1 {color1} -Color2 {color2str}", args);
+    let gamut_output = String::from_utf8(
+	Command::new("bash")
+	    .arg("-c").arg(&gamut_command).output()?.stdout)?.trim().to_owned();
+    Ok(serde_json::from_str::<Vec<Color>>(&gamut_output)?)
 }
