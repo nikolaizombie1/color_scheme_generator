@@ -144,7 +144,7 @@ fn prevalent_pixel(pixels: &[image::Rgb<u8>], number_of_themes: u8) -> Vec<RGB> 
 }
 
 fn call_gamut_cli(args: &ColorThemes, color1: &RGB, color2: Option<&RGB>) -> Result<Vec<Color>, anyhow::Error> {
-    which(GAMUT_CLI_NAME)?;
+    //which(GAMUT_CLI_NAME)?;
     let color2str = match color2 {
         Some(c) => c,
         None => &RGB{blue: 0, green: 0, red: 0},

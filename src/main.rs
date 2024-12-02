@@ -124,7 +124,10 @@ fn main() -> anyhow::Result<()> {
     let conn = database::DatabaseConnection::new(&cache_path)?;
 
     let wallpaper = Wallpaper{path: args.image.clone(), centrality: args.centrality};
-    let is_in_db = conn.is_color_theme_equal(&args.color_themes, &wallpaper)?;
+    let is_in_db = match conn.is_color_theme_equal(&args.color_themes, &wallpaper) {
+        Ok(_) => true,
+        Err(_) => false,
+    };
     let color_themes = match is_in_db {
         true => conn.select_color_records(&wallpaper),
         false => {

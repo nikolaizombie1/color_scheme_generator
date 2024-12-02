@@ -15,7 +15,7 @@ impl DatabaseConnection {
     pub fn new(path: &PathBuf) -> anyhow::Result<DatabaseConnection> {
         let conn = sqlite::open(path)?;
         let query = "
-        CREATE TABLE IF NOT EXISTS wallpaper(image TEXT NOT NULL, centrality TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS wallpaper(path TEXT NOT NULL, centrality TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS color_themes(darker INTEGER NOT NULL, 
                                         lighter INTEGER NOT NULL,
                                         complementary INTEGER NOT NULL,
@@ -40,7 +40,7 @@ impl DatabaseConnection {
     }
     pub fn insert_wallpaper_record(&self, wallpaper: &Wallpaper) -> anyhow::Result<()> {
         let query = format!(
-            "INSERT INTO wallpaper(path, centrality) VALUES ('{}', '{})",
+            "INSERT INTO wallpaper(path, centrality) VALUES ('{}', '{}')",
             wallpaper.path.to_str().ok_or(std::fmt::Error)?,
             wallpaper.centrality
         );
@@ -53,7 +53,7 @@ impl DatabaseConnection {
         wallpaper: &Wallpaper,
     ) -> anyhow::Result<(Wallpaper, i64)> {
         let query = format!(
-            "SELECT path, centrality, ROWID FROM wallpaper where path = '{}' AND centrality = '{}'",
+            "SELECT path, centrality, ROWID as PK FROM wallpaper where path = '{}' AND centrality = '{}'",
             wallpaper.path.to_str().ok_or(std::fmt::Error)?,
             wallpaper.centrality
         );
@@ -74,13 +74,12 @@ impl DatabaseConnection {
         let centrality = self
             .get_database_column::<&str>(&row, "centrality")?;
         let centrality = Centrality::from_str(centrality)?;
-        let rowid = row
-            .iter()
-            .map(|r| r.read::<i64, _>("ROWID"))
-            .collect::<Vec<_>>()
-            .first()
-            .ok_or(std::fmt::Error)?
-            .to_owned();
+        let rowid = row.iter();
+        let rowid = rowid.map(|r| r.read::<i64, _>("PK"));
+        let rowid = rowid.collect::<Vec<_>>();
+        let rowid = rowid.first();
+        let rowid =  rowid.ok_or(std::fmt::Error)?;
+        let rowid = rowid.to_owned();
         Ok((Wallpaper { path, centrality }, rowid))
     }
 
@@ -107,7 +106,7 @@ impl DatabaseConnection {
                                         tones,
                                         blends,
                                         wallpaper) VALUES
-                                        {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+                                        ({},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{})",
             args.darker,
             args.lighter,
             args.complementary,
@@ -134,7 +133,7 @@ impl DatabaseConnection {
         wallpaper: &Wallpaper,
     ) -> anyhow::Result<bool> {
         let query = format!(
-            "SELECT COUNT(1) FROM color_theme WHERE darker = {} AND 
+            "SELECT COUNT(1) as c FROM color_theme WHERE darker = {} AND 
                                         lighter = {} AND
                                         complementary = {} AND
                                         contrast = {} AND
@@ -174,7 +173,7 @@ impl DatabaseConnection {
             .map(|r| r.unwrap())
             .collect::<Vec<_>>();
         let count = self
-            .get_database_column::<i64>(&row, "COUNT(1)")?;
+            .get_database_column::<i64>(&row, "c")?;
         if count == 0 {
             return Ok(false);
         }
