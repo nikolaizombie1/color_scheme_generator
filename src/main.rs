@@ -91,8 +91,6 @@ fn is_default_color_theme_arguments(ct: &ColorThemes) -> bool {
 /// else analyze the image and add it to cache.
 fn main() -> anyhow::Result<()> {
 
-
-
     let mut args = if stdin().is_terminal() {
         Cli::parse()
     } else {
