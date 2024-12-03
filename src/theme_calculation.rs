@@ -144,14 +144,13 @@ fn prevalent_pixel(pixels: &[image::Rgb<u8>], number_of_themes: u8) -> Vec<RGB> 
 }
 
 fn call_gamut_cli(args: &ColorThemes, color1: &RGB, color2: Option<&RGB>) -> Result<Vec<Color>, anyhow::Error> {
-    //which(GAMUT_CLI_NAME)?;
     let color2str = match color2 {
         Some(c) => c,
         None => &RGB{blue: 0, green: 0, red: 0},
     };
-    let gamut_command = format!("gamut-cli {} -Color1 {color1} -Color2 {color2str}", args);
+    let gamut_command = format!("{} {} -Color1 '{color1}' -Color2 '{color2str}'", which(GAMUT_CLI_NAME)?.to_str().unwrap_or_else(|| GAMUT_CLI_NAME),args);
     let gamut_output = String::from_utf8(
 	Command::new("bash")
 	    .arg("-c").arg(&gamut_command).output()?.stdout)?.trim().to_owned();
-    Ok(serde_json::from_str::<Vec<Color>>(&gamut_output)?)
+    Ok(serde_json::from_str::<Vec<Color>>(&gamut_output.to_ascii_lowercase())?)
 }

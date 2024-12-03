@@ -1,4 +1,4 @@
-use clap::{Args, Parser, ValueEnum};
+use clap::{builder::Str, Args, Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 use std::{fmt::{Display, Error},  path::PathBuf, str::FromStr};
 use anyhow;
@@ -133,7 +133,8 @@ impl Display for ColorThemes {
             0 => "",
             _ => &format!("-Blends {}", self.blends),
         };
-	write!(f, "{darker} {lighter} {complementary} {contrast} {hue_offset} {triadic} {quadratic} {tetratic} {analogous} {split_complementary} {monochromatic} {shades} {tints} {tones} {blends}")
+
+	write!(f, "{darker}{lighter}{complementary}{contrast}{hue_offset}{triadic}{quadratic}{tetratic}{analogous}{split_complementary}{monochromatic}{shades}{tints}{tones}{blends}")
     }
 }
 
@@ -201,7 +202,7 @@ pub struct RGB {
 
 impl Display for RGB {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{:#2x}{:#2x}{:#2x}", self.red, self.green, self.blue)
+        write!(f, "#{:02x}{:02x}{:02x}", self.red, self.green, self.blue)
     }
 }
 
