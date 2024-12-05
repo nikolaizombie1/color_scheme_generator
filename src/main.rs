@@ -49,7 +49,7 @@
 
 use clap::Parser;
 use color_scheme_generator::{
-    common::{Centrality, Cli, ColorThemes, OutputFormat, APP_NAME, Wallpaper, Color},
+    common::{Centrality, Cli, Color, ColorThemes, OutputFormat, Wallpaper, APP_NAME},
     database, theme_calculation,
 };
 use std::io::{stdin, IsTerminal, Read};
@@ -68,6 +68,7 @@ fn is_default_color_theme_arguments(ct: &ColorThemes) -> bool {
         || ct.hue_offset != 0
         || ct.triadic
         || ct.quadratic
+        || ct.tetratic
         || ct.analogous
         || ct.split_complementary
         || ct.monochromatic != 0
@@ -112,55 +113,49 @@ fn main() -> anyhow::Result<()> {
         eprintln!(
             "Prevalent centrality must be present for either Tetratic or Blends color schemes."
         );
-	    std::process::exit(1);
+        std::process::exit(1);
     }
 
     if is_default_color_theme_arguments(&args.color_themes) {
-	args.color_themes.quadratic = true;
+        args.color_themes.quadratic = true;
     }
 
     let xdg_dirs = xdg::BaseDirectories::with_prefix(APP_NAME)?;
     let cache_path = xdg_dirs.place_cache_file("cache.db")?;
     let conn = database::DatabaseConnection::new(&cache_path)?;
 
-    let wallpaper = Wallpaper{path: args.image.clone(), centrality: args.centrality};
-    let is_in_db = match conn.is_color_theme_equal(&args.color_themes, &wallpaper) {
-        Ok(_) => true,
-        Err(_) => false,
+    let wallpaper = Wallpaper {
+        path: args.image.clone(),
+        centrality: args.centrality,
     };
-    let color_themes = match is_in_db {
-        true => conn.select_color_records(&wallpaper),
-        false => {
-	    if is_image(&args.image).is_err() {
-		eprintln!("Inputted file is not an image");
-		std::process::exit(1);
-	    }
-	    conn.insert_wallpaper_record(&wallpaper)?;
-	    conn.insert_color_themes_record(&args.color_themes, &wallpaper)?;
-	    let colors = crate::theme_calculation::generate_color_theme(&args)?;
-	    for color in &colors {
-		conn.insert_color_record(color, &wallpaper)?;
-	    }
-	    Ok(colors)
-	},
+    let color_themes = match conn.select_color_records(&wallpaper, &args.color_themes) {
+        Ok(c) => c,
+        Err(_) => {
+            if is_image(&args.image).is_err() {
+                eprintln!("Inputted file is not an image");
+                std::process::exit(1);
+            }
+            conn.insert_wallpaper_record(&wallpaper)?;
+            conn.insert_color_themes_record(&args.color_themes, &wallpaper)?;
+            let colors = crate::theme_calculation::generate_color_theme(&args)?;
+            for color in &colors {
+                conn.insert_color_record(color, &wallpaper, &args.color_themes)?;
+            }
+            colors
+        }
     };
-
-    if color_themes.is_err() {
-	eprintln!("Error generating theme. Exiting.");
-	std::process::exit(1);
-    }
-
-    let color_themes = color_themes.unwrap();
 
     let output: String = match args.serialization_format {
         OutputFormat::JSON => serde_json::to_string::<Vec<Color>>(&color_themes)?,
         OutputFormat::YAML => serde_yml::to_string::<Vec<Color>>(&color_themes)?,
         OutputFormat::TEXT => {
-	    let mut ret = String::new();
-	    color_themes.iter().for_each(|c| ret += &format!("{},", c.color));
-	    let mut ret = String::from(&(&ret)[0..ret.len()-2]);
-	    ret += "\n";
-	    ret
+            let mut ret = String::new();
+            color_themes
+                .iter()
+                .for_each(|c| ret += &format!("{},", c.color));
+            let mut ret = String::from(&(&ret)[0..ret.len() - 2]);
+            ret += "\n";
+            ret
         }
     };
     println!("{}", output);

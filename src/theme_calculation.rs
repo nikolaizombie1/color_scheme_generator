@@ -1,11 +1,10 @@
 #![deny(unused_extern_crates)]
 #![warn(missing_docs)]
+use crate::common::{Centrality, Cli, Color, ColorThemes, GAMUT_CLI_NAME, RGB};
+use anyhow::Ok;
 use rayon::prelude::*;
-use crate::common::{RGB, Centrality, Color, GAMUT_CLI_NAME, Cli, ColorThemes};
 use std::process::Command;
 use which::which;
-
-
 
 /// Get a [`Vec<ColorTheme>`] for an image based on the centrality and number of themes.
 ///
@@ -27,9 +26,7 @@ use which::which;
 /// # let image_path = "test.png".parse::<PathBuf>().unwrap();
 /// generate_color_theme(&image_path, Centrality::Prevalent, 10);
 /// ```
-pub fn generate_color_theme(
-    args: &Cli
-) -> anyhow::Result<Vec<Color>> {
+pub fn generate_color_theme(args: &Cli) -> anyhow::Result<Vec<Color>> {
     let pixels = image::ImageReader::open(&args.image)?
         .decode()?
         .to_rgb8()
@@ -41,12 +38,18 @@ pub fn generate_color_theme(
         Centrality::Median => vec![median_pixel(&pixels)],
         Centrality::Prevalent => prevalent_pixel(&pixels, 2),
     };
-    match args.centrality {
-        Centrality::Average | Centrality::Median => Ok(call_gamut_cli(&args.color_themes, &bar_color[0], None)?),
-        Centrality::Prevalent => Ok(call_gamut_cli(&args.color_themes, &bar_color[0], Some(&bar_color[1]))?),
+     match args.centrality {
+        Centrality::Average | Centrality::Median => {
+            Ok(call_gamut_cli(&args.color_themes, &bar_color[0], None)?)
+        }
+        Centrality::Prevalent => Ok(call_gamut_cli(
+            &args.color_themes,
+            &bar_color[0],
+            Some(&bar_color[1]),
+        )?),
     }
+    
 }
-
 
 /// Get the average pixel from an image.
 ///
@@ -79,7 +82,6 @@ fn average_pixel(pixels: &[image::Rgb<u8>]) -> RGB {
         .unwrap(),
     }
 }
-
 
 /// Get the median pixel from an image
 ///
@@ -120,7 +122,7 @@ fn prevalent_pixel(pixels: &[image::Rgb<u8>], number_of_themes: u8) -> Vec<RGB> 
         .par_iter()
         .map(|x| (x.0, x.1))
         .collect::<Vec<_>>();
-    most_prevalent.sort_by(|a,b| b.1.cmp(a.1));
+    most_prevalent.sort_by(|a, b| b.1.cmp(a.1));
     if most_prevalent.len() > number_of_themes as usize {
         most_prevalent[0..(number_of_themes as usize)]
             .par_iter()
@@ -130,7 +132,6 @@ fn prevalent_pixel(pixels: &[image::Rgb<u8>], number_of_themes: u8) -> Vec<RGB> 
                 blue: x.0[2],
             })
             .collect::<Vec<_>>()
-        
     } else {
         most_prevalent
             .par_iter()
@@ -143,14 +144,42 @@ fn prevalent_pixel(pixels: &[image::Rgb<u8>], number_of_themes: u8) -> Vec<RGB> 
     }
 }
 
-fn call_gamut_cli(args: &ColorThemes, color1: &RGB, color2: Option<&RGB>) -> Result<Vec<Color>, anyhow::Error> {
+fn call_gamut_cli(
+    ct: &ColorThemes,
+    color1: &RGB,
+    color2: Option<&RGB>,
+) -> Result<Vec<Color>, anyhow::Error> {
     let color2str = match color2 {
         Some(c) => c,
-        None => &RGB{blue: 0, green: 0, red: 0},
+        None => &RGB {
+            blue: 0,
+            green: 0,
+            red: 0,
+        },
     };
-    let gamut_command = format!("{} {} -Color1 '{color1}' -Color2 '{color2str}'", which(GAMUT_CLI_NAME)?.to_str().unwrap_or_else(|| GAMUT_CLI_NAME),args);
+    let gamut_command = format!(
+        "{} {} -Color1 '{color1}' -Color2 '{color2str}'",
+        which(GAMUT_CLI_NAME)?
+            .to_str()
+            .unwrap_or(GAMUT_CLI_NAME),
+        ct
+    );
     let gamut_output = String::from_utf8(
-	Command::new("bash")
-	    .arg("-c").arg(&gamut_command).output()?.stdout)?.trim().to_owned();
-    Ok(serde_json::from_str::<Vec<Color>>(&gamut_output.to_ascii_lowercase())?)
+        Command::new("bash")
+            .arg("-c")
+            .arg(&gamut_command)
+            .output()?
+            .stdout,
+    )?
+    .trim()
+    .to_owned()
+    .to_ascii_lowercase();
+    let mut ret = match gamut_output.contains("[") || gamut_output.contains("]") {
+        true => serde_json::from_str::<Vec<Color>>(&gamut_output)?,
+        false => vec![serde_json::from_str::<Color>(&gamut_output)?],
+    };
+    if ct.darker > 0 || ct.lighter > 0 || ct.complementary || ct.contrast || ct.hue_offset > 0 {
+        ret.insert(0, Color { color: color1.to_string() });
+    }
+    Ok(ret)
 }

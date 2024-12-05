@@ -16,7 +16,8 @@ impl DatabaseConnection {
         let conn = sqlite::open(path)?;
         let query = "
         CREATE TABLE IF NOT EXISTS wallpaper(path TEXT NOT NULL, centrality TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS color_themes(darker INTEGER NOT NULL, 
+        CREATE TABLE IF NOT EXISTS color_themes(
+                                        darker INTEGER NOT NULL, 
                                         lighter INTEGER NOT NULL,
                                         complementary INTEGER NOT NULL,
                                         contrast INTEGER NOT NULL,
@@ -33,7 +34,7 @@ impl DatabaseConnection {
                                         blends INTEGER NOT NULL,
                                         wallpaper INTEGER NOT NULL,
                                         FOREIGN KEY(wallpaper) REFERENCES wallpaper(ROWID));
-        CREATE TABLE IF NOT EXISTS color(color TEXT NOT NULL, wallpaper INTEGER NOT NULL, FOREIGN KEY(wallpaper) REFERENCES wallpaper(ROWID));
+        CREATE TABLE IF NOT EXISTS color(color TEXT NOT NULL, wallpaper INTEGER NOT NULL, color_themes INTEGER NOT NULL, FOREIGN KEY(wallpaper) REFERENCES wallpaper(ROWID), FOREIGN KEY(color_themes) REFERENCES color_themes(ROWID));
         ";
         conn.execute(query)?;
         Ok(DatabaseConnection { connection: conn })
@@ -71,15 +72,15 @@ impl DatabaseConnection {
             .first()
             .ok_or(std::fmt::Error)?
             .to_owned();
-        let centrality = self
-            .get_database_column::<&str>(&row, "centrality")?;
+        let centrality = self.get_database_column::<&str>(&row, "centrality")?;
         let centrality = Centrality::from_str(centrality)?;
-        let rowid = row.iter();
-        let rowid = rowid.map(|r| r.read::<i64, _>("PK"));
-        let rowid = rowid.collect::<Vec<_>>();
-        let rowid = rowid.first();
-        let rowid =  rowid.ok_or(std::fmt::Error)?;
-        let rowid = rowid.to_owned();
+        let rowid = row
+            .iter()
+            .map(|r| r.read::<i64, _>("PK"))
+            .collect::<Vec<_>>()
+            .first()
+            .ok_or(std::fmt::Error)?
+            .to_owned();
         Ok((Wallpaper { path, centrality }, rowid))
     }
 
@@ -127,13 +128,19 @@ impl DatabaseConnection {
         self.connection.execute(query)?;
         Ok(())
     }
-    pub fn is_color_theme_equal(
+    pub fn select_color_theme_record(
         &self,
         ct: &ColorThemes,
         wallpaper: &Wallpaper,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<(ColorThemes, i64)> {
+        let wallpaper_rowid = match self.select_wallpaper_record(wallpaper) {
+            Ok(i) => i.1,
+            Err(e) => {
+                return Err(e);
+            }
+        };
         let query = format!(
-            "SELECT COUNT(1) as c FROM color_theme WHERE darker = {} AND 
+            "SELECT darker, lighter, complementary, contrast, hueOffset, triadic, quadratic, tetratic, analogous, splitComplementary, monochromatic, shades, tints, tones, blends, ROWID as PK FROM color_themes WHERE darker = {} AND 
                                         lighter = {} AND
                                         complementary = {} AND
                                         contrast = {} AND
@@ -164,7 +171,7 @@ impl DatabaseConnection {
             ct.tints,
             ct.tones,
             ct.blends,
-            self.select_wallpaper_record(wallpaper)?.1
+            wallpaper_rowid
         );
         let row = self
             .connection
@@ -172,52 +179,78 @@ impl DatabaseConnection {
             .into_iter()
             .map(|r| r.unwrap())
             .collect::<Vec<_>>();
-        let count = self
-            .get_database_column::<i64>(&row, "c")?;
-        if count == 0 {
-            return Ok(false);
-        }
-        Ok(true)
+        let color_themes = ColorThemes {
+            darker: u8::try_from(self.get_database_column::<i64>(&row, "darker")?)?,
+            lighter: u8::try_from(self.get_database_column::<i64>(&row, "lighter")?)?,
+            complementary: i64_to_bool(self.get_database_column(&row, "complementary")?),
+            contrast: i64_to_bool(self.get_database_column(&row, "contrast")?),
+            hue_offset: u16::try_from(self.get_database_column::<i64>(&row, "hueOffset")?)?,
+            triadic: i64_to_bool(self.get_database_column(&row, "triadic")?),
+            quadratic: i64_to_bool(self.get_database_column(&row, "quadratic")?),
+            tetratic: i64_to_bool(self.get_database_column(&row, "tetratic")?),
+            analogous: i64_to_bool(self.get_database_column(&row, "analogous")?),
+            split_complementary: i64_to_bool(self.get_database_column(&row, "splitComplementary")?),
+            monochromatic: u8::try_from(self.get_database_column::<i64>(&row, "lighter")?)?,
+            shades: u8::try_from(self.get_database_column::<i64>(&row, "shades")?)?,
+            tints: u8::try_from(self.get_database_column::<i64>(&row, "tints")?)?,
+            tones: u8::try_from(self.get_database_column::<i64>(&row, "tones")?)?,
+            blends: u8::try_from(self.get_database_column::<i64>(&row, "blends")?)?,
+        };
+        let rowid = self.get_database_column::<i64>(&row, "PK")?;
+        Ok((color_themes, rowid))
     }
 
-    pub fn insert_color_record(&self, color: &Color, wallpaper: &Wallpaper) -> anyhow::Result<()> {
+    pub fn insert_color_record(&self, color: &Color, wallpaper: &Wallpaper, ct: &ColorThemes) -> anyhow::Result<()> {
         let query = format!(
-            "INSERT INTO color (color, wallpaper) VALUES ('{}', {})",
+            "INSERT INTO color (color, wallpaper, color_themes) VALUES ('{}', {}, {})",
             color.color,
-            self.select_wallpaper_record(wallpaper)?.1
+            self.select_wallpaper_record(wallpaper)?.1,
+            self.select_color_theme_record(ct, wallpaper)?.1
         );
         self.connection.execute(query)?;
         Ok(())
     }
 
-    pub fn select_color_records(&self, wallpaper: &Wallpaper) -> anyhow::Result<Vec<Color>> {
+    pub fn select_color_records(
+        &self,
+        wallpaper: &Wallpaper,
+        ct: &ColorThemes,
+    ) -> anyhow::Result<Vec<Color>> {
         let query = format!(
-            "SELECT color FROM color where wallpaper = {} ORDER BY ROWID;",
-            self.select_wallpaper_record(wallpaper)?.1
+            "SELECT color FROM color where wallpaper = {} AND color_themes = {} ORDER BY ROWID;",
+            self.select_wallpaper_record(wallpaper)?.1,
+            self.select_color_theme_record(ct, wallpaper)?.1
         );
         let colors = self
             .connection
             .prepare(&query)?
             .into_iter()
-            .map(|r| r.unwrap()).collect::<Vec<_>>();
-         let colors = colors.iter().map(|r| r.read::<&str, _>("color"))
+            .map(|r| r.unwrap())
+            .collect::<Vec<_>>();
+        let colors = colors
+            .iter()
+            .map(|r| r.read::<&str, _>("color"))
             .map(|r| String::from_str(r).unwrap())
             .map(|s| Color { color: s })
             .collect::<Vec<_>>();
-	Ok(colors)
+        Ok(colors)
     }
 
     fn get_database_column<'a, T>(&'a self, row: &'a [Row], column: &str) -> anyhow::Result<T>
     where
         T: TryFrom<&'a sqlite::Value, Error = sqlite::Error>,
         T: Clone,
-	T: Copy
+        T: Copy,
     {
-        let binding  = row
+        let binding = row
             .iter()
             .map(|r| r.read::<T, _>(column))
             .collect::<Vec<_>>();
-	let x = binding.first().ok_or(std::fmt::Error)?;
-	Ok(*x)
+        let x = binding.first().ok_or(std::fmt::Error)?;
+        Ok(*x)
     }
+}
+
+fn i64_to_bool(num: i64) -> bool {
+    !matches!(num, 0)
 }

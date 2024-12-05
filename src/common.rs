@@ -1,7 +1,11 @@
-use clap::{builder::Str, Args, Parser, ValueEnum};
-use serde::{Deserialize, Serialize};
-use std::{fmt::{Display, Error},  path::PathBuf, str::FromStr};
 use anyhow;
+use clap::{Args, Parser, ValueEnum};
+use serde::{Deserialize, Serialize};
+use std::{
+    fmt::{Display, Error},
+    path::PathBuf,
+    str::FromStr,
+};
 
 /// Command line argument Struct used by clap to parse CLI arguments.
 #[derive(Parser, Serialize, Deserialize)]
@@ -85,7 +89,7 @@ impl Display for ColorThemes {
             true => "-Complementary",
             false => "",
         };
-        let contrast = match self.complementary {
+        let contrast = match self.contrast {
             true => "-Contrast",
             false => "",
         };
@@ -109,32 +113,32 @@ impl Display for ColorThemes {
             true => "-Analogous",
             false => "",
         };
-	let split_complementary = match self.split_complementary {
+        let split_complementary = match self.split_complementary {
             true => "-SplitComplementary",
             false => "",
-        }; 
-	let monochromatic = match self.monochromatic {
+        };
+        let monochromatic = match self.monochromatic {
             0 => "",
             _ => &format!("-Monochromatic {}", self.monochromatic),
         };
-	let shades = match self.shades {
+        let shades = match self.shades {
             0 => "",
             _ => &format!("-Shades {}", self.shades),
         };
-	let tints = match self.tints {
+        let tints = match self.tints {
             0 => "",
             _ => &format!("-Tints {}", self.tints),
         };
-	let tones = match self.tones {
+        let tones = match self.tones {
             0 => "",
             _ => &format!("-Tones {}", self.tones),
         };
-	let blends = match self.blends {
+        let blends = match self.blends {
             0 => "",
             _ => &format!("-Blends {}", self.blends),
         };
 
-	write!(f, "{darker}{lighter}{complementary}{contrast}{hue_offset}{triadic}{quadratic}{tetratic}{analogous}{split_complementary}{monochromatic}{shades}{tints}{tones}{blends}")
+        write!(f, "{darker}{lighter}{complementary}{contrast}{hue_offset}{triadic}{quadratic}{tetratic}{analogous}{split_complementary}{monochromatic}{shades}{tints}{tones}{blends}")
     }
 }
 
@@ -180,12 +184,12 @@ impl Display for Centrality {
 impl FromStr for Centrality {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-	match s {
-	    "average" => Ok(Centrality::Average),
-	    "median" => Ok(Centrality::Median),
-	    "prevalent" => Ok(Centrality::Prevalent),
-	    _ => Err(Error.into())
-	}
+        match s {
+            "average" => Ok(Centrality::Average),
+            "median" => Ok(Centrality::Median),
+            "prevalent" => Ok(Centrality::Prevalent),
+            _ => Err(Error.into()),
+        }
     }
 }
 
@@ -212,7 +216,6 @@ pub const APP_NAME: &str = "color_scheme_generator";
 /// Command line executable name for gamut-cli.
 pub const GAMUT_CLI_NAME: &str = "gamut-cli";
 
-
 #[derive(Serialize, Deserialize)]
 pub struct Color {
     pub color: String,
@@ -220,6 +223,5 @@ pub struct Color {
 
 pub struct Wallpaper {
     pub path: PathBuf,
-    pub centrality: Centrality
+    pub centrality: Centrality,
 }
-
