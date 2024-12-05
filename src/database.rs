@@ -200,7 +200,12 @@ impl DatabaseConnection {
         Ok((color_themes, rowid))
     }
 
-    pub fn insert_color_record(&self, color: &Color, wallpaper: &Wallpaper, ct: &ColorThemes) -> anyhow::Result<()> {
+    pub fn insert_color_record(
+        &self,
+        color: &Color,
+        wallpaper: &Wallpaper,
+        ct: &ColorThemes,
+    ) -> anyhow::Result<()> {
         let query = format!(
             "INSERT INTO color (color, wallpaper, color_themes) VALUES ('{}', {}, {})",
             color.color,

@@ -38,7 +38,7 @@ pub fn generate_color_theme(args: &Cli) -> anyhow::Result<Vec<Color>> {
         Centrality::Median => vec![median_pixel(&pixels)],
         Centrality::Prevalent => prevalent_pixel(&pixels, 2),
     };
-     match args.centrality {
+    match args.centrality {
         Centrality::Average | Centrality::Median => {
             Ok(call_gamut_cli(&args.color_themes, &bar_color[0], None)?)
         }
@@ -48,7 +48,6 @@ pub fn generate_color_theme(args: &Cli) -> anyhow::Result<Vec<Color>> {
             Some(&bar_color[1]),
         )?),
     }
-    
 }
 
 /// Get the average pixel from an image.
@@ -159,9 +158,7 @@ fn call_gamut_cli(
     };
     let gamut_command = format!(
         "{} {} -Color1 '{color1}' -Color2 '{color2str}'",
-        which(GAMUT_CLI_NAME)?
-            .to_str()
-            .unwrap_or(GAMUT_CLI_NAME),
+        which(GAMUT_CLI_NAME)?.to_str().unwrap_or(GAMUT_CLI_NAME),
         ct
     );
     let gamut_output = String::from_utf8(
@@ -179,7 +176,12 @@ fn call_gamut_cli(
         false => vec![serde_json::from_str::<Color>(&gamut_output)?],
     };
     if ct.darker > 0 || ct.lighter > 0 || ct.complementary || ct.contrast || ct.hue_offset > 0 {
-        ret.insert(0, Color { color: color1.to_string() });
+        ret.insert(
+            0,
+            Color {
+                color: color1.to_string(),
+            },
+        );
     }
     Ok(ret)
 }

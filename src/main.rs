@@ -52,6 +52,7 @@ use color_scheme_generator::{
     common::{Centrality, Cli, Color, ColorThemes, OutputFormat, Wallpaper, APP_NAME},
     database, theme_calculation,
 };
+use log::{error, warn};
 use std::io::{stdin, IsTerminal, Read};
 use std::path::PathBuf;
 
@@ -107,13 +108,17 @@ fn main() -> anyhow::Result<()> {
         Cli::parse_from(args.iter())
     };
 
+    stderrlog::new()
+        .module(module_path!())
+        .verbosity(!args.log_level)
+        .init()
+        .unwrap();
+
     if (args.color_themes.tetratic || args.color_themes.blends > 0)
         && args.centrality != Centrality::Prevalent
     {
-        eprintln!(
-            "Prevalent centrality must be present for either Tetratic or Blends color schemes."
-        );
-        std::process::exit(1);
+        warn!("Incompatible centralitry argument. Switching to Prevalent.");
+        args.centrality = Centrality::Prevalent
     }
 
     if is_default_color_theme_arguments(&args.color_themes) {
@@ -132,7 +137,7 @@ fn main() -> anyhow::Result<()> {
         Ok(c) => c,
         Err(_) => {
             if is_image(&args.image).is_err() {
-                eprintln!("Inputted file is not an image");
+                error!("Inputted file is not an image");
                 std::process::exit(1);
             }
             conn.insert_wallpaper_record(&wallpaper)?;

@@ -23,6 +23,9 @@ pub struct Cli {
 
     #[command(flatten)]
     pub color_themes: ColorThemes,
+    /// Level of logging
+    #[arg(short, long, default_value_t = 0)]
+    pub log_level: usize,
 }
 
 #[derive(Args, Serialize, Deserialize)]
