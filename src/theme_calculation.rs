@@ -21,10 +21,33 @@ use which::which;
 /// # Examples
 /// ```
 /// # use std::path::PathBuf;
-/// # use color_scheme_generator::theme_calculation::Centrality;
-/// # use color_scheme_generator::theme_calculation::generate_color_theme;
-/// # let image_path = "test.png".parse::<PathBuf>().unwrap();
-/// generate_color_theme(&image_path, Centrality::Prevalent, 10);
+/// # use color_scheme_generator::common::{Centrality, Cli, ColorThemes, OutputFormat};
+/// # use color_scheme_generator::theme_calculation::generate_color_theme; 
+/// # let color_themes = ColorThemes {
+/// #   darker: 0,
+/// #   lighter: 0,
+/// #   complementary: false,
+/// #   contrast: false,
+/// #   hue_offset: 0,
+/// #   triadic: false,
+/// #   quadratic: true,
+/// #   tetratic: false,
+/// #   analogous: false,
+/// #   split_complementary: false,
+/// #   monochromatic: 0,
+/// #   shades: 0,
+/// #   tints: 0,
+/// #   tones: 0,
+/// #   blends: 0,
+/// # };
+/// # let cli = Cli {
+/// #   image : "text".parse::<PathBuf>().unwrap(),
+/// #   centrality: Centrality::Prevalent,
+/// #   serialization_format: OutputFormat::JSON,
+/// #   color_themes : color_themes,
+/// #   log_level: 0, 
+/// # };
+/// generate_color_theme(&cli);
 /// ```
 pub fn generate_color_theme(args: &Cli) -> anyhow::Result<Vec<Color>> {
     let pixels = image::ImageReader::open(&args.image)?

@@ -12,28 +12,29 @@ pub struct DatabaseConnection {
 }
 
 impl DatabaseConnection {
+    /// Create database cache file and connect to it.
+    /// 
+    /// # Notes
+    /// 
+    /// This method creates a sqlite database with three tables: wallpaper, color_themes, and color which represent the [`Wallpaper`], [`ColorThemes`], and [`Color`] repectively.
+    /// Every color_themes record must have a valid wallpaper record attached to it and every color record must have a valid wallpaper and color_themes record attached to it.
+    /// 
+    /// # Errors
+    /// 
+    /// If the database file cannot be created, albeit due to insufficient permissions or an invalid path, the method will throw an error.
+    /// 
+    /// # Examples
+    /// ```
+    /// # use std::path::PathBuf;
+    /// # use color_scheme_generator::database::DatabaseConnection; 
+    /// # let cache_path = ":memory:".parse::<PathBuf>().unwrap();
+    /// let database_connection = DatabaseConnection::new(&cache_path).unwrap();
+    /// ```
     pub fn new(path: &PathBuf) -> anyhow::Result<DatabaseConnection> {
         let conn = sqlite::open(path)?;
         let query = "
         CREATE TABLE IF NOT EXISTS wallpaper(path TEXT NOT NULL, centrality TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS color_themes(
-                                        darker INTEGER NOT NULL, 
-                                        lighter INTEGER NOT NULL,
-                                        complementary INTEGER NOT NULL,
-                                        contrast INTEGER NOT NULL,
-                                        hueOffset INTEGER NOT NULL,
-                                        triadic INTEGER NOT NULL,
-                                        quadratic INTEGER NOT NULL,
-                                        tetratic INTEGER NOT NULL,
-                                        analogous INTEGER NOT NULL,
-                                        splitComplementary INTEGER NOT NULL,
-                                        monochromatic INTEGER NOT NULL,
-                                        shades INTEGER NOT NULL,
-                                        tints INTEGER NOT NULL,
-                                        tones INTEGER NOT NULL,
-                                        blends INTEGER NOT NULL,
-                                        wallpaper INTEGER NOT NULL,
-                                        FOREIGN KEY(wallpaper) REFERENCES wallpaper(ROWID));
+        CREATE TABLE IF NOT EXISTS color_themes(darker INTEGER NOT NULL, lighter INTEGER NOT NULL, complementary INTEGER NOT NULL, contrast INTEGER NOT NULL, hueOffset INTEGER NOT NULL, triadic INTEGER NOT NULL, quadratic INTEGER NOT NULL, tetratic INTEGER NOT NULL, analogous INTEGER NOT NULL, splitComplementary INTEGER NOT NULL, monochromatic INTEGER NOT NULL, shades INTEGER NOT NULL, tints INTEGER NOT NULL, tones INTEGER NOT NULL, blends INTEGER NOT NULL, wallpaper INTEGER NOT NULL, FOREIGN KEY(wallpaper) REFERENCES wallpaper(ROWID));
         CREATE TABLE IF NOT EXISTS color(color TEXT NOT NULL, wallpaper INTEGER NOT NULL, color_themes INTEGER NOT NULL, FOREIGN KEY(wallpaper) REFERENCES wallpaper(ROWID), FOREIGN KEY(color_themes) REFERENCES color_themes(ROWID));
         ";
         conn.execute(query)?;
