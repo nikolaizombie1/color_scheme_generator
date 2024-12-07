@@ -19,7 +19,7 @@ impl DatabaseConnection {
     /// ```
     /// use std::path::PathBuf;
     /// use color_scheme_generator::database::DatabaseConnection;
-    /// let db_path = "test.db".parse::<PathBuf>().unwrap();
+    /// let db_path = String::from(":memory:").parse::<PathBuf>().unwrap();
     /// let conn = DatabaseConnection::new(&db_path).unwrap();
     /// ```
     pub fn new(path: &PathBuf) -> anyhow::Result<DatabaseConnection> {
@@ -72,8 +72,7 @@ impl DatabaseConnection {
     /// # use std::path::PathBuf;
     /// # use color_scheme_generator::database::DatabaseConnection;
     /// # use color_scheme_generator::theme_calculation::{ColorTheme, RGB};
-    /// # let db_path = "test.db".parse::<PathBuf>().unwrap();
-    /// let conn = DatabaseConnection::new(&db_path).unwrap();
+    /// let conn = DatabaseConnection::new(&String::from(":memory:").parse::<PathBuf>().unwrap()).unwrap();
     /// # let image_path = "PATH".parse::<PathBuf>().unwrap();
     /// conn.select_color_theme_by_image_path(&image_path);
     /// ```
