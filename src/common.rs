@@ -2,9 +2,7 @@ use anyhow;
 use clap::{Args, Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 use std::{
-    fmt::{Display, Error},
-    path::PathBuf,
-    str::FromStr,
+    fmt::{Display, Error}, path::PathBuf, str::FromStr
 };
 
 /// Command line argument Struct used by clap to parse CLI arguments.
@@ -22,7 +20,7 @@ pub struct Cli {
     pub serialization_format: OutputFormat,
 
     #[command(flatten)]
-    pub color_themes: ColorThemes,
+    pub color_themes: ColorThemeOption,
     /// Level of logging
     #[arg(short, long, default_value_t = 0)]
     pub log_level: usize,
@@ -30,7 +28,7 @@ pub struct Cli {
 
 #[derive(Args, Serialize, Deserialize)]
 #[group(multiple = false)]
-pub struct ColorThemes {
+pub struct ColorThemeOption {
     /// Make color selected by the centrality darker.
     #[arg(long, default_value_t = 0, value_parser = clap::value_parser!(u8).range(0 ..= 100))]
     pub darker: u8,
@@ -78,7 +76,7 @@ pub struct ColorThemes {
     pub blends: u8,
 }
 
-impl Display for ColorThemes {
+impl Display for ColorThemeOption {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let darker = match self.darker {
             0 => "",
@@ -213,16 +211,54 @@ impl Display for RGB {
     }
 }
 
+impl FromStr for RGB {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let regex = regex::Regex::new(r"^#[0123456789AaBbCcDdEeFf]{6}$").unwrap();
+        match regex.is_match(s) {
+            true => {
+                let hex = s.as_bytes();
+                let red = hex_to_rgb(hex[1], hex[2])?;
+                let green = hex_to_rgb(hex[3], hex[4])?;
+                let blue = hex_to_rgb(hex[5], hex[6])?;
+                
+                Ok(RGB { red, green, blue })
+            }
+            false => {
+                Err(anyhow::anyhow!(
+                    "Inputted string is not a valid hexadecimal RGB value. Example: #FFFFFF"
+                ))
+            }
+        }
+    }
+}
+
+fn hex_to_rgb(msd: u8, lsd: u8) -> anyhow::Result<u8> {
+
+    let leading = (u16::from(char_to_u8(msd as char)?)) << 4;
+    let smallest = u16::from(char_to_u8(lsd as char)?);
+    println!("{:08b} {:08b}", leading, smallest);
+    let ret = leading + smallest;
+    Ok(u8::try_from(ret)?)
+
+}
+
+fn char_to_u8(c: char) -> anyhow::Result<u8> {
+
+    let x =c.to_ascii_uppercase() as u8;
+
+    match x.to_ascii_uppercase() as u8 {
+        48..=58 => Ok(x   - 48),
+        65..=90 => Ok(x - 55),
+        _ => Err(anyhow::anyhow!("Character cannot be converted to u8."))
+    }
+}
+
 /// Application Name used for XDG compliant directory structure.
 pub const APP_NAME: &str = "color_scheme_generator";
 
 /// Command line executable name for gamut-cli.
 pub const GAMUT_CLI_NAME: &str = "gamut-cli";
-
-#[derive(Serialize, Deserialize)]
-pub struct Color {
-    pub color: String,
-}
 
 pub struct Wallpaper {
     pub path: PathBuf,

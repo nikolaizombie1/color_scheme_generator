@@ -1,12 +1,13 @@
 #![deny(unused_extern_crates)]
 #![warn(missing_docs)]
-use crate::common::{Centrality, Cli, Color, ColorThemes, GAMUT_CLI_NAME, RGB};
+use crate::common::{Centrality, Cli, ColorThemeOption, GAMUT_CLI_NAME, RGB};
 use anyhow::Ok;
+use clap::builder::Str;
 use rayon::prelude::*;
-use std::process::Command;
+use std::{process::Command, str::FromStr};
 use which::which;
 
-/// Get a [`Vec<ColorTheme>`] for an image based on the centrality and number of themes.
+/// Get a [`Vec<ColorThemeOption>`] for an image based on the centrality and number of themes.
 ///
 /// # Notes
 /// The number_of_themes is ignored and set to 1 if the centrality is either [`Centrality::Average`] or [`Centrality::Median`].
@@ -21,9 +22,9 @@ use which::which;
 /// # Examples
 /// ```
 /// # use std::path::PathBuf;
-/// # use color_scheme_generator::common::{Centrality, Cli, ColorThemes, OutputFormat};
-/// # use color_scheme_generator::theme_calculation::generate_color_theme; 
-/// # let color_themes = ColorThemes {
+/// # use color_scheme_generator::common::{Centrality, Cli, ColorThemeOption, OutputFormat};
+/// # use color_scheme_generator::theme_calculation::generate_color_theme;
+/// # let color_themes = ColorThemeOption {
 /// #   darker: 0,
 /// #   lighter: 0,
 /// #   complementary: false,
@@ -45,11 +46,11 @@ use which::which;
 /// #   centrality: Centrality::Prevalent,
 /// #   serialization_format: OutputFormat::JSON,
 /// #   color_themes : color_themes,
-/// #   log_level: 0, 
+/// #   log_level: 0,
 /// # };
 /// generate_color_theme(&cli);
 /// ```
-pub fn generate_color_theme(args: &Cli) -> anyhow::Result<Vec<Color>> {
+pub fn generate_color_theme(args: &Cli) -> anyhow::Result<Vec<RGB>> {
     let pixels = image::ImageReader::open(&args.image)?
         .decode()?
         .to_rgb8()
@@ -131,7 +132,7 @@ fn median(color_slice: &[u8]) -> u8 {
 /// Get the pixels that appear the most times from an image.
 ///
 /// # Note
-/// Will return a [`Vec<ColorTheme>`], whose size will be either number_of_themes
+/// Will return a [`Vec<ColorThemeOption>`], whose size will be either number_of_themes
 /// or the amount of distinct rgb pixels in the image. The smaller of these two amounts
 /// will be the size of the returned vector.
 fn prevalent_pixel(pixels: &[image::Rgb<u8>], number_of_themes: u8) -> Vec<RGB> {
@@ -167,10 +168,10 @@ fn prevalent_pixel(pixels: &[image::Rgb<u8>], number_of_themes: u8) -> Vec<RGB> 
 }
 
 fn call_gamut_cli(
-    ct: &ColorThemes,
+    ct: &ColorThemeOption,
     color1: &RGB,
     color2: Option<&RGB>,
-) -> Result<Vec<Color>, anyhow::Error> {
+) -> Result<Vec<RGB>, anyhow::Error> {
     let color2str = match color2 {
         Some(c) => c,
         None => &RGB {
@@ -195,16 +196,15 @@ fn call_gamut_cli(
     .to_owned()
     .to_ascii_lowercase();
     let mut ret = match gamut_output.contains("[") || gamut_output.contains("]") {
-        true => serde_json::from_str::<Vec<Color>>(&gamut_output)?,
-        false => vec![serde_json::from_str::<Color>(&gamut_output)?],
+        true => serde_json::from_str::<Vec<RGB>>(&gamut_output)?,
+        false => vec![serde_json::from_str::<RGB>(&gamut_output)?],
     };
-    if ct.darker > 0 || ct.lighter > 0 || ct.complementary || ct.contrast || ct.hue_offset > 0 {
-        ret.insert(
-            0,
-            Color {
-                color: color1.to_string(),
-            },
-        );
-    }
-    Ok(ret)
+    // let mut ret = ret.into_iter().map(|s| )
+    // if ct.darker > 0 || ct.lighter > 0 || ct.complementary || ct.contrast || ct.hue_offset > 0 {
+    //     ret.insert(
+    //         0,
+    //     color1.to_owned()
+    //     );
+    // }
+    Ok(vec![color1.to_owned()])
 }

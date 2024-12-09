@@ -49,11 +49,11 @@
 
 use clap::Parser;
 use color_scheme_generator::{
-    common::{Centrality, Cli, Color, ColorThemes, OutputFormat, Wallpaper, APP_NAME},
+    common::{Centrality, Cli, RGB, ColorThemeOption, OutputFormat, Wallpaper, APP_NAME},
     database, theme_calculation,
 };
 use log::{error, warn};
-use std::io::{stdin, IsTerminal, Read};
+use std::{io::{stdin, IsTerminal, Read}, str::FromStr};
 use std::path::PathBuf;
 
 fn is_image(path: &PathBuf) -> anyhow::Result<()> {
@@ -61,7 +61,7 @@ fn is_image(path: &PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn is_default_color_theme_arguments(ct: &ColorThemes) -> bool {
+fn is_default_color_theme_arguments(ct: &ColorThemeOption) -> bool {
     if ct.darker != 0
         || ct.lighter != 0
         || ct.complementary
@@ -92,6 +92,9 @@ fn is_default_color_theme_arguments(ct: &ColorThemes) -> bool {
 /// check if image is in cache, if so return theme,
 /// else analyze the image and add it to cache.
 fn main() -> anyhow::Result<()> {
+    
+    println!("{:#?}", rgb);
+
     let mut args = if stdin().is_terminal() {
         Cli::parse()
     } else {
@@ -117,7 +120,7 @@ fn main() -> anyhow::Result<()> {
     if (args.color_themes.tetratic || args.color_themes.blends > 0)
         && args.centrality != Centrality::Prevalent
     {
-        warn!("Incompatible centralitry argument. Switching to Prevalent.");
+        warn!("Incompatible centrality argument. Switching to Prevalent.");
         args.centrality = Centrality::Prevalent
     }
 
@@ -133,7 +136,7 @@ fn main() -> anyhow::Result<()> {
         path: args.image.clone(),
         centrality: args.centrality,
     };
-    let color_themes = match conn.select_color_records(&wallpaper, &args.color_themes) {
+    let color_themes = match conn.select_rgb_records(&wallpaper, &args.color_themes) {
         Ok(c) => c,
         Err(_) => {
             if is_image(&args.image).is_err() {
@@ -144,20 +147,20 @@ fn main() -> anyhow::Result<()> {
             conn.insert_color_themes_record(&args.color_themes, &wallpaper)?;
             let colors = crate::theme_calculation::generate_color_theme(&args)?;
             for color in &colors {
-                conn.insert_color_record(color, &wallpaper, &args.color_themes)?;
+                conn.insert_rgb_record(color, &wallpaper, &args.color_themes)?;
             }
             colors
         }
     };
 
     let output: String = match args.serialization_format {
-        OutputFormat::JSON => serde_json::to_string::<Vec<Color>>(&color_themes)?,
-        OutputFormat::YAML => serde_yml::to_string::<Vec<Color>>(&color_themes)?,
+        OutputFormat::JSON => serde_json::to_string::<Vec<RGB>>(&color_themes)?,
+        OutputFormat::YAML => serde_yml::to_string::<Vec<RGB>>(&color_themes)?,
         OutputFormat::TEXT => {
             let mut ret = String::new();
             color_themes
                 .iter()
-                .for_each(|c| ret += &format!("{},", c.color));
+                .for_each(|c| ret += &format!("{},", c));
             let mut ret = String::from(&(&ret)[0..ret.len() - 2]);
             ret += "\n";
             ret
