@@ -2,7 +2,9 @@ use anyhow;
 use clap::{Args, Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 use std::{
-    fmt::{Display, Error}, path::PathBuf, str::FromStr
+    fmt::{Display, Error},
+    path::PathBuf,
+    str::FromStr,
 };
 
 /// Command line argument Struct used by clap to parse CLI arguments.
@@ -13,7 +15,7 @@ pub struct Cli {
     #[arg(required = true, index = 1)]
     pub image: PathBuf,
     /// Measure of centrality to be used to analyze an image.
-    #[arg(short, long, default_value_t = Centrality::Prevalent)]
+    #[arg(short, long, default_value_t = Centrality::Median)]
     pub centrality: Centrality,
     /// Output format for color themes.
     #[arg(short, long, default_value_t = OutputFormat::JSON)]
@@ -221,36 +223,30 @@ impl FromStr for RGB {
                 let red = hex_to_rgb(hex[1], hex[2])?;
                 let green = hex_to_rgb(hex[3], hex[4])?;
                 let blue = hex_to_rgb(hex[5], hex[6])?;
-                
+
                 Ok(RGB { red, green, blue })
             }
-            false => {
-                Err(anyhow::anyhow!(
-                    "Inputted string is not a valid hexadecimal RGB value. Example: #FFFFFF"
-                ))
-            }
+            false => Err(anyhow::anyhow!(
+                "Inputted string is not a valid hexadecimal RGB value. Example: #FFFFFF"
+            )),
         }
     }
 }
 
 fn hex_to_rgb(msd: u8, lsd: u8) -> anyhow::Result<u8> {
-
     let leading = (u16::from(char_to_u8(msd as char)?)) << 4;
     let smallest = u16::from(char_to_u8(lsd as char)?);
-    println!("{:08b} {:08b}", leading, smallest);
     let ret = leading + smallest;
     Ok(u8::try_from(ret)?)
-
 }
 
 fn char_to_u8(c: char) -> anyhow::Result<u8> {
-
-    let x =c.to_ascii_uppercase() as u8;
+    let x = c.to_ascii_uppercase() as u8;
 
     match x.to_ascii_uppercase() as u8 {
-        48..=58 => Ok(x   - 48),
+        48..=58 => Ok(x - 48),
         65..=90 => Ok(x - 55),
-        _ => Err(anyhow::anyhow!("Character cannot be converted to u8."))
+        _ => Err(anyhow::anyhow!("Character cannot be converted to u8.")),
     }
 }
 

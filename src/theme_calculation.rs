@@ -2,8 +2,8 @@
 #![warn(missing_docs)]
 use crate::common::{Centrality, Cli, ColorThemeOption, GAMUT_CLI_NAME, RGB};
 use anyhow::Ok;
-use clap::builder::Str;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::{process::Command, str::FromStr};
 use which::which;
 
@@ -195,16 +195,24 @@ fn call_gamut_cli(
     .trim()
     .to_owned()
     .to_ascii_lowercase();
-    let mut ret = match gamut_output.contains("[") || gamut_output.contains("]") {
-        true => serde_json::from_str::<Vec<RGB>>(&gamut_output)?,
-        false => vec![serde_json::from_str::<RGB>(&gamut_output)?],
+
+    #[derive(Serialize, Deserialize)]
+    struct Color {
+        color: String,
+    }
+
+    let ret = match gamut_output.contains("[") || gamut_output.contains("]") {
+        true => serde_json::from_str::<Vec<Color>>(&gamut_output)?,
+        false => vec![serde_json::from_str::<Color>(&gamut_output)?],
     };
-    // let mut ret = ret.into_iter().map(|s| )
-    // if ct.darker > 0 || ct.lighter > 0 || ct.complementary || ct.contrast || ct.hue_offset > 0 {
-    //     ret.insert(
-    //         0,
-    //     color1.to_owned()
-    //     );
-    // }
-    Ok(vec![color1.to_owned()])
+
+    let mut ret = ret
+        .into_iter()
+        .filter_map(|c| RGB::from_str(&c.color).ok())
+        .collect::<Vec<_>>();
+
+    if ct.darker > 0 || ct.lighter > 0 || ct.complementary || ct.contrast || ct.hue_offset > 0 {
+        ret.insert(0, color1.to_owned());
+    }
+    Ok(ret)
 }

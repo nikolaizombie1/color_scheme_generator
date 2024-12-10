@@ -308,10 +308,10 @@ impl DatabaseConnection {
     ///
     /// # Notes
     /// Both [`ColorThemeOption`] and [`Wallpaper`] records have to be inserted into the database before successfully inserting a [`RGB`] record.
-    /// 
+    ///
     /// # Errors
     /// Will throw an error if either [`Wallpaper`] or [`ColorThemeOption`] is not found in the database.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use std::path::PathBuf;
@@ -359,10 +359,10 @@ impl DatabaseConnection {
     }
 
     /// Select  [`RGB`] record in from the database.
-    /// 
+    ///
     /// # Notes
     /// A [`Wallpaper`] and [`ColorThemeOption`] must be inserted into the database before a [`RGB`] record can be successfully selected since the [`Wallpaper`] ROWID and [`ColorThemeOption`] ROWID is referenced by a [`RGB`] record.
-    /// 
+    ///
     /// # Errors
     /// Will throw an error if:
     /// - [`Wallpaper`] record is not found in the database.

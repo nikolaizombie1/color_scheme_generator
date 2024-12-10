@@ -49,11 +49,11 @@
 
 use clap::Parser;
 use color_scheme_generator::{
-    common::{Centrality, Cli, RGB, ColorThemeOption, OutputFormat, Wallpaper, APP_NAME},
+    common::{Centrality, Cli, ColorThemeOption, OutputFormat, Wallpaper, APP_NAME, RGB},
     database, theme_calculation,
 };
 use log::{error, warn};
-use std::{io::{stdin, IsTerminal, Read}, str::FromStr};
+use std::io::{stdin, IsTerminal, Read};
 use std::path::PathBuf;
 
 fn is_image(path: &PathBuf) -> anyhow::Result<()> {
@@ -92,9 +92,6 @@ fn is_default_color_theme_arguments(ct: &ColorThemeOption) -> bool {
 /// check if image is in cache, if so return theme,
 /// else analyze the image and add it to cache.
 fn main() -> anyhow::Result<()> {
-    
-    println!("{:#?}", rgb);
-
     let mut args = if stdin().is_terminal() {
         Cli::parse()
     } else {
@@ -158,9 +155,7 @@ fn main() -> anyhow::Result<()> {
         OutputFormat::YAML => serde_yml::to_string::<Vec<RGB>>(&color_themes)?,
         OutputFormat::TEXT => {
             let mut ret = String::new();
-            color_themes
-                .iter()
-                .for_each(|c| ret += &format!("{},", c));
+            color_themes.iter().for_each(|c| ret += &format!("{},", c));
             let mut ret = String::from(&(&ret)[0..ret.len() - 2]);
             ret += "\n";
             ret
