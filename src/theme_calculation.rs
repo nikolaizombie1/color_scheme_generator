@@ -111,15 +111,15 @@ pub fn calculate_color_theme(rgb: &RGB) -> ColorTheme {
     let text_color =
         if workspace_color.red > 128 && workspace_color.blue > 128 && workspace_color.green > 128 {
             RGB {
-                red: 0,
-                green: 0,
-                blue: 0,
-            }
-        } else {
-            RGB {
                 red: 255,
                 green: 255,
                 blue: 255,
+            }
+        } else {
+            RGB {
+                red: 0,
+                green: 0,
+                blue: 0,
             }
         };
     ColorTheme {
